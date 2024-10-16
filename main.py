@@ -84,7 +84,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # model arguments
-    parser.add_argument('--img_size', type=int, default=256,
+    parser.add_argument('--img_size', type=int, default=128,
                         help='Image resolution')
     parser.add_argument('--num_domains', type=int, default=2,
                         help='Number of domains')

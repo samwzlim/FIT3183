@@ -104,7 +104,7 @@ if __name__ == '__main__':
                         help='Weight for style reconstruction loss')
     parser.add_argument('--lambda_ds', type=float, default=1,
                         help='Weight for diversity sensitive loss')
-    parser.add_argument('--ds_iter', type=int, default=100000,
+    parser.add_argument('--ds_iter', type=int, default=100,
                         help='Number of iterations to optimize diversity sensitive loss')
     parser.add_argument('--w_hpf', type=float, default=1,
                         help='weight for high-pass filtering')
@@ -112,7 +112,7 @@ if __name__ == '__main__':
     # training arguments
     parser.add_argument('--randcrop_prob', type=float, default=0.5,
                         help='Probabilty of using random-resized cropping')
-    parser.add_argument('--total_iters', type=int, default=100000,
+    parser.add_argument('--total_iters', type=int, default=100,
                         help='Number of total iterations')
     parser.add_argument('--resume_iter', type=int, default=0,
                         help='Iterations to resume training/testing')

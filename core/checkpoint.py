@@ -29,7 +29,7 @@ class CheckpointIO(object):
         """Load all modules."""
         fname = self.fname_template.format(step)
         assert os.path.exists(fname), fname + ' does not exist!'
-        module_dict = torch.load(fname)
+        module_dict = torch.load(fname, weights_only=True)
         for name, module in self.module_dict.items():
             if name in module_dict:
                 print(f"Loading {name} with strict=False")

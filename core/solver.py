@@ -69,20 +69,20 @@ class Solver(nn.Module):
             ckptio.save(step)
 
     def _load_checkpoint(self, step):
-    for ckptio in self.ckptios:
-        module_dict = ckptio.load(step)
-        for name, module in self.named_children():
-            if name not in module_dict:
-                print(f"Warning: {name} not found in the checkpoint, skipping.")
-                continue
-            if 'optimizer' in name:  # If it's an optimizer, load differently
-                if module_dict[name] is not None:
-                    module.load_state_dict(module_dict[name])
-            else:  # For models (which could be wrapped in DataParallel)
-                if hasattr(module, 'module'):
-                    module.module.load_state_dict(module_dict.get(name, {}), strict=False)
-                else:
-                    module.load_state_dict(module_dict.get(name, {}), strict=False)
+        for ckptio in self.ckptios:
+            module_dict = ckptio.load(step)
+            for name, module in self.named_children():
+                if name not in module_dict:
+                    print(f"Warning: {name} not found in the checkpoint, skipping.")
+                    continue
+                if 'optimizer' in name:  # If it's an optimizer, load differently
+                    if module_dict[name] is not None:
+                        module.load_state_dict(module_dict[name])
+                else:  # For models (which could be wrapped in DataParallel)
+                    if hasattr(module, 'module'):
+                        module.module.load_state_dict(module_dict.get(name, {}), strict=False)
+                    else:
+                        module.load_state_dict(module_dict.get(name, {}), strict=False)
 
     def _reset_grad(self):
         for optim in self.optims.values():

@@ -70,7 +70,15 @@ class Solver(nn.Module):
 
     def _load_checkpoint(self, step):
         for ckptio in self.ckptios:
-            ckptio.load(step)
+            module_dict = ckptio.load(step)
+            for name, module in self.named_children():
+                if 'optimizer' in name:  # If it's an optimizer, load differently
+                    module.load_state_dict(module_dict[name])
+                else:  # For models (which could be wrapped in DataParallel)
+                    if hasattr(module, 'module'):
+                        module.module.load_state_dict(module_dict[name], strict=False)
+                    else:
+                        module.load_state_dict(module_dict[name], strict=False)
 
     def _reset_grad(self):
         for optim in self.optims.values():

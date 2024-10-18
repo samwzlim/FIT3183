@@ -24,7 +24,6 @@ from core.wing import FAN
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
 
-
 class ResBlk(nn.Module):
     def __init__(self, dim_in, dim_out, actv=nn.LeakyReLU(0.2),
                  normalize=False, downsample=False):
@@ -138,20 +137,6 @@ class HighPass(nn.Module):
         return F.conv2d(x, filter, padding=1, groups=x.size(1))
 
 
-class TransformerBlock(nn.Module):
-    def __init__(self, dim, heads=8, dim_head=64, dropout=0.1):
-        super().__init__()
-        self.norm1 = nn.LayerNorm(dim)
-        self.attn = Attention(dim, heads, dim_head, dropout)
-        self.norm2 = nn.LayerNorm(dim)
-        self.ff = FeedForward(dim, hidden_dim=dim * 4, dropout=dropout)
-
-    def forward(self, x):
-        x = x + self.attn(self.norm1(x))
-        x = x + self.ff(self.norm2(x))
-        return x
-
-
 class Generator(nn.Module):
     def __init__(self, img_size=256, style_dim=64, max_conv_dim=512, w_hpf=1):
         super().__init__()
@@ -164,7 +149,7 @@ class Generator(nn.Module):
             nn.InstanceNorm2d(dim_in, affine=True),
             nn.LeakyReLU(0.2),
             nn.Conv2d(dim_in, 3, 1, 1, 0))
-        
+
         # down/up-sampling blocks
         repeat_num = int(np.log2(img_size)) - 4
         if w_hpf > 0:
@@ -184,9 +169,6 @@ class Generator(nn.Module):
                 ResBlk(dim_out, dim_out, normalize=True))
             self.decode.insert(
                 0, AdainResBlk(dim_out, dim_out, style_dim, w_hpf=w_hpf))
-        
-        # Transformer block integration
-        self.transformer = TransformerBlock(dim=dim_out, heads=8, dim_head=64, dropout=0.1)
 
         if w_hpf > 0:
             device = torch.device(
@@ -200,8 +182,6 @@ class Generator(nn.Module):
             if (masks is not None) and (x.size(2) in [32, 64, 128]):
                 cache[x.size(2)] = x
             x = block(x)
-        # Integrate Transformer Block after encoding
-        x = self.transformer(x)
         for block in self.decode:
             x = block(x, s)
             if (masks is not None) and (x.size(2) in [32, 64, 128]):
@@ -344,6 +324,7 @@ class ScaledDotProductAttention(nn.Module):
         attn = F.softmax(score, -1)
         context = torch.bmm(attn, value)
         return context, attn
+        
 
 
 class Attention(nn.Module):
@@ -360,13 +341,17 @@ class Attention(nn.Module):
 
         self.to_qkv = nn.Linear(dim, inner_dim * 3, bias=False)
 
+        # Flatten the input to 1D before applying LayerNorm
+        self.norm1 = nn.LayerNorm(dim)
         self.to_out = nn.Sequential(
             nn.Linear(inner_dim, dim),
             nn.Dropout(dropout)
         ) if project_out else nn.Identity()
 
     def forward(self, x):
-        qkv = self.to_qkv(x).chunk(3, dim=-1)
+        # Flatten input before applying LayerNorm
+        x_flat = x.view(x.shape[0], -1)  # Flattening the input
+        qkv = self.to_qkv(x_flat).chunk(3, dim=-1)
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h=self.heads), qkv)
 
         dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
@@ -377,7 +362,7 @@ class Attention(nn.Module):
         out = torch.matmul(attn, v)
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
-
+        
 
 class FeedForward(nn.Module):
     def __init__(self, dim, hidden_dim, dropout=0.):

@@ -22,7 +22,7 @@ class CheckpointIO(object):
         os.makedirs(os.path.dirname(fname), exist_ok=True)
         module_dict = {k: v.module if hasattr(v, 'module') else v
                        for k, v in self.module_dict.items()}
-        state_dict = {k: v.state_dict() for k, v in module_dict.items()}
+        state_dict = {k: v.state_dict() for k, v in module_dict.items() if hasattr(v, 'state_dict')}
         torch.save(state_dict, fname)
 
     def load(self, step):

@@ -11,40 +11,29 @@ Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 import os
 import torch
 
-
 class CheckpointIO(object):
-    def __init__(self, fname_template, data_parallel=False, **kwargs):
-        os.makedirs(os.path.dirname(fname_template), exist_ok=True)
+    def __init__(self, fname_template, **module_dict):
         self.fname_template = fname_template
-        self.module_dict = kwargs
-        self.data_parallel = data_parallel
-
-    def register(self, **kwargs):
-        self.module_dict.update(kwargs)
+        self.module_dict = module_dict
 
     def save(self, step):
+        """Save all modules."""
         fname = self.fname_template.format(step)
-        print('Saving checkpoint into %s...' % fname)
-        outdict = {}
-        for name, module in self.module_dict.items():
-            if self.data_parallel:
-                outdict[name] = module.module.state_dict()
-            else:
-                outdict[name] = module.state_dict()
-                        
-        torch.save(outdict, fname)
+        os.makedirs(os.path.dirname(fname), exist_ok=True)
+        module_dict = {k: v.module if hasattr(v, 'module') else v
+                       for k, v in self.module_dict.items()}
+        state_dict = {k: v.state_dict() for k, v in module_dict.items()}
+        torch.save(state_dict, fname)
 
     def load(self, step):
+        """Load all modules."""
         fname = self.fname_template.format(step)
         assert os.path.exists(fname), fname + ' does not exist!'
-        print('Loading checkpoint from %s...' % fname)
-        if torch.cuda.is_available():
-            module_dict = torch.load(fname)
-        else:
-            module_dict = torch.load(fname, map_location=torch.device('cpu'))
-            
+        module_dict = torch.load(fname)
         for name, module in self.module_dict.items():
-            if self.data_parallel:
+            if name in module_dict:
+                print(f"Loading {name} with strict=False")
+                # Allowing mismatched layers to be skipped during loading
                 module.module.load_state_dict(module_dict[name], strict=False)
             else:
-                module.load_state_dict(module_dict[name], strict=False)
+                print(f"Warning: {name} not found in checkpoint, skipping.")
